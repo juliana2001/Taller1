@@ -1,5 +1,10 @@
 from django.shortcuts import render
 from django.http import HttpResponse
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import io
+import urllib, base64
 from .models import Movie
 
 def home(request):
@@ -16,3 +21,90 @@ def home(request):
 
 def about(request):
     return render(request, 'about.html', {'about': 'Esta es la página About'})
+
+def signup(request):
+    email = request.GET.get('email')
+    return render(request,'signup.html', {'email':email})
+
+def genre_statistics_view(request):
+    matplotlib.use('Agg')
+    genres = Movie.objects.values_list('genre', flat=True).distinct()
+    movie_counts_by_genre = {}
+    for genre in genres:
+        if genre:
+            movies_in_genre = Movie.objects.filter(genre=genre)
+        else:
+            movies_in_genre = Movie.objects.filter(genre__isnull=True)
+            genre = "None"
+            count = movies_in_genre.count()
+            movie_counts_by_genre[genre] = count
+        
+        bar_width = 0.5 # Ancho de las barras 
+        bar_spacing = 0.5 # Separación entre las barras 
+        bar_positions = range(len(movie_counts_by_genre))# Posiciones de las barras
+# Crear la gráfica de barras 
+        plt.bar(bar_positions, movie_counts_by_genre.values(), width=bar_width, align='center') 
+# Personalizar la gráfica 
+        plt.title('Movies per genre') 
+        plt.xlabel('genre') 
+        plt.ylabel('Number of movies') 
+        plt.xticks(bar_positions, movie_counts_by_genre.keys(), rotation=90) 
+# Ajustar el espaciado entre las barras 
+        plt.subplots_adjust(bottom=0.3) 
+# Guardar la gráfica en un objeto BytesIO 
+        buffer = io.BytesIO() 
+        plt.savefig(buffer, format='png') 
+        buffer.seek(0) 
+        plt.close()
+        
+        image_png = buffer.getvalue() 
+        buffer.close() 
+        graphic = base64.b64encode(image_png) 
+        graphic = graphic.decode('utf-8')
+        return render(request, 'statistics.html', {'graphic': graphic})
+ 
+# Convertir la gráfica a base64 
+    image_png = buffer.getvalue() 
+    buffer.close() 
+    graphic = base64.b64encode(image_png) 
+    graphic = graphic.decode('utf-8')
+    return render(request, 'statistics.html', {'graphic': graphic})
+
+def statistics_view(request): 
+    matplotlib.use('Agg') 
+    years = Movie.objects.values_list('year', flat=True).distinct().order_by('year') # Obtener todos los años de las películas 
+    movie_counts_by_year = {} # Crear un diccionario para almacenar la cantidad de películas por año 
+    for year in years: # Contar la cantidad de películas por año 
+        if year is not None:  # solo contar si el año existe
+            movies_in_year = Movie.objects.filter(year=year)
+            count = movies_in_year.count()
+            movie_counts_by_year[year] = count
+        else: 
+            movies_in_year = Movie.objects.filter(year__isnull=True)
+            year = "None"
+            count = movies_in_year.count() 
+            movie_counts_by_year[year] = count
+    bar_width = 0.5 # Ancho de las barras 
+    bar_spacing = 0.5 # Separación entre las barras 
+    bar_positions = range(len(movie_counts_by_year))# Posiciones de las barras
+# Crear la gráfica de barras 
+    plt.bar(bar_positions, movie_counts_by_year.values(), width=bar_width, align='center') 
+# Personalizar la gráfica 
+    plt.title('Movies per year') 
+    plt.xlabel('Year') 
+    plt.ylabel('Number of movies') 
+    plt.xticks(bar_positions, movie_counts_by_year.keys(), rotation=90) 
+# Ajustar el espaciado entre las barras 
+    plt.subplots_adjust(bottom=0.3) 
+# Guardar la gráfica en un objeto BytesIO 
+    buffer = io.BytesIO() 
+    plt.savefig(buffer, format='png') 
+    buffer.seek(0) 
+    plt.close() 
+ 
+# Convertir la gráfica a base64 
+    image_png = buffer.getvalue() 
+    buffer.close() 
+    graphic = base64.b64encode(image_png) 
+    graphic = graphic.decode('utf-8')
+    return render(request, 'statistics.html', {'graphic': graphic})
